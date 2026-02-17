@@ -1,0 +1,57 @@
+# mkdir gateway_service
+# mkdir auth_service
+# mkdir staff_service
+# mkdir student_service
+# mkdir curriculum_service
+# mkdir notification_service
+# mkdir finance_service
+
+
+cd gateway_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
+
+cd finance_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
+
+cd student_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
+
+cd staff_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
+
+cd auth_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
+
+cd curriculum_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
+
+cd notification_service
+uv init
+uv venv
+.venv\Scripts\activate
+uv add fastapi uvicorn
+cd ..
