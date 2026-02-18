@@ -1,7 +1,3 @@
-"""
-Auth Service Models
-Defines Pydantic models for user authentication, authorization, and accounting.
-"""
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
@@ -75,9 +71,9 @@ class AuditLog(BaseModel):
     """Audit log entry for accounting"""
     id: int
     user_id: int
-    action: str  # e.g., "login", "register", "role_change", "access_denied"
-    resource: str  # e.g., "user", "report", "settings"
-    status: str  # "success" or "failure"
+    action: str
+    resource: str
+    status: str
     ip_address: str
     timestamp: datetime
     details: Optional[dict] = None
@@ -104,6 +100,7 @@ class RoleBase(BaseModel):
     """Base role model"""
     name: UserRole
     description: Optional[str] = None
+
 
 
 class Role(RoleBase):

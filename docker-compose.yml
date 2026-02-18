@@ -1,0 +1,52 @@
+version: "3.9"
+services:
+  auth_service:
+    build: ./auth_service
+    ports:
+      - "8000:8000"
+
+  student_service:
+    build: ./student_service
+    ports:
+      - "8001:8000"
+    depends_on:
+      - auth_service
+
+  staff_service:
+    build: ./staff_service
+    ports:
+      - "8002:8000"
+    depends_on:
+      - auth_service
+
+  finance_service:
+    build: ./finance_service
+    ports:
+      - "8003:8000"
+    depends_on:
+      - auth_service
+
+  curriculum_service:
+    build: ./curriculum_service
+    ports:
+      - "8004:8000"
+    depends_on:
+      - auth_service
+
+  notification_service:
+    build: ./notification_service
+    ports:
+      - "8005:8000"
+    depends_on:
+      - auth_service
+
+  gateway_service:
+    build: ./gateway_service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - student_service
+      - staff_service
+      - finance_service
+      - curriculum_service
+      - notification_service
