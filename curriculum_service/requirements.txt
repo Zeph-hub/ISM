@@ -1,0 +1,40 @@
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Data Validation & Serialization
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+bcrypt==4.1.1
+passlib[bcrypt]==1.7.4
+
+# HTTP Client (for microservice communication)
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Data Processing
+python-dateutil==2.8.2
+
+# Development Dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.12.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Monitoring & Logging
+python-logging-loki==0.3.1
+
+# Email (for notifications)
+email-validator==2.1.0
+aiosmtplib==3.0.1
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Optional: Docker health checks
+requests==2.31.0

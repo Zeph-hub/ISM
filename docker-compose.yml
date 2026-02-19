@@ -1,72 +1,78 @@
 version: "3.9"
+
+networks:
+  isms_network:
+    driver: bridge
+
 services:
   auth_service:
     build: ./auth_service
+    container_name: auth_service
     ports:
       - "8000:8000"
-    # environment:
-    #   - DATABASE_URL=postgresql://user:password@db:5432/auth_db
-  
+    networks:
+      - isms_network
+
   student_service:
     build: ./student_service
+    container_name: student_service
     ports:
       - "8001:8000"
     depends_on:
       - auth_service
-    # environment:
-    #   - DATABASE_URL=postgresql://user:password@db:5432/student_db
+    networks:
+      - isms_network
 
   staff_service:
-    build: ./staff_service 
+    build: ./staff_service
+    container_name: staff_service
     ports:
       - "8002:8000"
     depends_on:
       - auth_service
-    # environment:
-    #   - DATABASE_URL=postgresql://user:password@db:5432/st
-  
+    networks:
+      - isms_network
+
   finance_service:
     build: ./finance_service
+    container_name: finance_service
     ports:
       - "8003:8000"
     depends_on:
       - auth_service
-    # environment:
-    #   - DATABASE_URL=postgresql://user:password@db:5432/finance_db
+    networks:
+      - isms_network
 
   curriculum_service:
     build: ./curriculum_service
+    container_name: curriculum_service
     ports:
       - "8004:8000"
     depends_on:
       - auth_service
-    # environment:
-    #   - DATABASE_URL=postgresql://user:password@db:5432/curriculum_db
+    networks:
+      - isms_network
 
   notification_service:
     build: ./notification_service
+    container_name: notification_service
     ports:
       - "8005:8000"
     depends_on:
       - auth_service
-    # environment:
-    #   - DATABASE_URL=postgresql://user:password@db:5432/notification_db
+    networks:
+      - isms_network
 
   gateway_service:
     build: ./gateway_service
+    container_name: gateway_service
     ports:
       - "8080:8080"
     depends_on:
-      - auth_service
       - student_service
       - staff_service
       - finance_service
       - curriculum_service
       - notification_service
-    # environment:
-    #   - AUTH_SERVICE_URL=http://auth_service:8000
-    #   - STUDENT_SERVICE_URL=http://student_service:8000
-    #   - STAFF_SERVICE_URL=http://staff_service:8000
-    #   - FINANCE_SERVICE_URL=http://finance_service:8000
-    #   - CURRICULUM_SERVICE_URL=http://curriculum_service:8000
-    #   - NOTIFICATION_SERVICE_URL=http://notification_service:8000
+    networks:
+      - isms_network
