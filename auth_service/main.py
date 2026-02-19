@@ -1,45 +1,45 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from .routes import router
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
+import jwt, datetime
 
-app = FastAPI(
-    title="Auth Service",
-    description="Authentication, Authorization, and Accounting Service",
-    version="1.0.0"
-)
+app = FastAPI()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+SECRET_KEY = "supersecret"
+ALGORITHM = "HS256"
 
-# Include routes
-app.include_router(router)
+class User(BaseModel):
+    username: str
+    password: str
+    role: str
 
+# Mock user store (replace with DB)
+users = {
+    "admin": {"password": "hashed_admin_pw", "role": "admin"},
+    "teacher": {"password": "hashed_teacher_pw", "role": "teacher"},
+}
 
-@app.get("/")
-async def root():
-    return {
-        "service": "auth-service",
-        "version": "1.0.0",
-        "description": "Authentication, Authorization, and Accounting Service",
-        "endpoints": {
-            "authentication": ["/api/auth/register", "/api/auth/login", "/api/auth/refresh"],
-            "authorization": ["/api/auth/users", "/api/auth/users/{user_id}/role"],
-            "accounting": ["/api/auth/audit-logs"]
-        }
+def create_token(username: str, role: str):
+    payload = {
+        "sub": username,
+        "role": role,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
     }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
+@app.post("/token")
+def login(user: User):
+    if user.username in users and users[user.username]["password"] == user.password:
+        token = create_token(user.username, users[user.username]["role"])
+        return {"access_token": token, "token_type": "bearer"}
+    raise HTTPException(status_code=401, detail="Invalid credentials")
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "service": "auth-service"}
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+def verify_token(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")

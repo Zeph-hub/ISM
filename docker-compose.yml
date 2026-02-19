@@ -4,27 +4,35 @@ services:
     build: ./auth_service
     ports:
       - "8000:8000"
-
+    # environment:
+    #   - DATABASE_URL=postgresql://user:password@db:5432/auth_db
+  
   student_service:
     build: ./student_service
     ports:
       - "8001:8000"
     depends_on:
       - auth_service
+    # environment:
+    #   - DATABASE_URL=postgresql://user:password@db:5432/student_db
 
   staff_service:
-    build: ./staff_service
+    build: ./staff_service 
     ports:
       - "8002:8000"
     depends_on:
       - auth_service
-
+    # environment:
+    #   - DATABASE_URL=postgresql://user:password@db:5432/st
+  
   finance_service:
     build: ./finance_service
     ports:
       - "8003:8000"
     depends_on:
       - auth_service
+    # environment:
+    #   - DATABASE_URL=postgresql://user:password@db:5432/finance_db
 
   curriculum_service:
     build: ./curriculum_service
@@ -32,6 +40,8 @@ services:
       - "8004:8000"
     depends_on:
       - auth_service
+    # environment:
+    #   - DATABASE_URL=postgresql://user:password@db:5432/curriculum_db
 
   notification_service:
     build: ./notification_service
@@ -39,14 +49,24 @@ services:
       - "8005:8000"
     depends_on:
       - auth_service
+    # environment:
+    #   - DATABASE_URL=postgresql://user:password@db:5432/notification_db
 
   gateway_service:
     build: ./gateway_service
     ports:
       - "8080:8080"
     depends_on:
+      - auth_service
       - student_service
       - staff_service
       - finance_service
       - curriculum_service
       - notification_service
+    # environment:
+    #   - AUTH_SERVICE_URL=http://auth_service:8000
+    #   - STUDENT_SERVICE_URL=http://student_service:8000
+    #   - STAFF_SERVICE_URL=http://staff_service:8000
+    #   - FINANCE_SERVICE_URL=http://finance_service:8000
+    #   - CURRICULUM_SERVICE_URL=http://curriculum_service:8000
+    #   - NOTIFICATION_SERVICE_URL=http://notification_service:8000

@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-ISM System Verification Script
-Validates that all services are properly configured and ready to run.
-"""
 
 import sys
 from typing import List, Tuple
