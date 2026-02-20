@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from .routes import router
+from routes import router
 
 app = FastAPI(
     title="Curriculum Service",

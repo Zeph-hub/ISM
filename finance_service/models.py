@@ -1,7 +1,3 @@
-"""
-Finance Service Models
-Defines Pydantic models for financial management.
-"""
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
