@@ -38,3 +38,22 @@ slowapi==0.1.9
 
 # Optional: Docker health checks
 requests==2.31.0
+
+#additionals
+fastapi
+uvicorn
+PyJWT
+passlib
+bcrypt
+python-jose
+python-multipart
+httpx
+aiohttp
+python-dateutil
+pytest
+pytest-asyncio
+sqlalchemy
+alembic
+psycopg2-binary
+pydantic
+pydantic-settings
