@@ -1,11 +1,19 @@
 """
 Auth Service Models
-Defines Pydantic models for user authentication, authorization, and accounting.
+Defines Pydantic and SQLAlchemy models for user authentication, authorization, and accounting.
 """
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SQLEnum, Text, JSON
+from sqlalchemy.orm import relationship
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db import Base
 
 
 class UserRole(str, Enum):
@@ -16,6 +24,40 @@ class UserRole(str, Enum):
     STAFF = "staff"
 
 
+# SQLAlchemy ORM Models
+class UserORM(Base):
+    """User ORM model"""
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    full_name = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(SQLEnum(UserRole), default=UserRole.STUDENT)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    audit_logs = relationship("AuditLogORM", back_populates="user")
+
+
+class AuditLogORM(Base):
+    """Audit log ORM model"""
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=True)
+    action = Column(String(100), nullable=False)
+    resource = Column(String(100), nullable=False)
+    status = Column(String(20), nullable=False)  # success or failure
+    ip_address = Column(String(50), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    details = Column(JSON, nullable=True)
+    
+    user = relationship("UserORM", back_populates="audit_logs")
+
+
+# Pydantic Models (for API validation)
 class UserBase(BaseModel):
     """Base user model"""
     email: EmailStr
@@ -74,14 +116,11 @@ class TokenPayload(BaseModel):
 class AuditLog(BaseModel):
     """Audit log entry for accounting"""
     id: int
-    user_id: int
+    user_id: Optional[int] = None
     action: str  # e.g., "login", "register", "role_change", "access_denied"
     resource: str  # e.g., "user", "report", "settings"
     status: str  # "success" or "failure"
-    ip_address: str
-    timestamp: datetime
-    details: Optional[dict] = None
-    
+    ip_address: Optional[str] = None
     class Config:
         from_attributes = True
 

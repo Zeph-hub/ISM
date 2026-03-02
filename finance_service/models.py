@@ -1,11 +1,19 @@
 """
 Finance Service Models
-Defines Pydantic models for financial management.
+Defines Pydantic and SQLAlchemy models for financial management.
 """
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum as SQLEnum, ForeignKey, JSON
+from sqlalchemy.orm import relationship
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db import Base
 
 
 class TransactionType(str, Enum):
@@ -32,6 +40,101 @@ class InvoiceStatus(str, Enum):
     PAID = "paid"
     OVERDUE = "overdue"
     CANCELLED = "cancelled"
+
+
+# SQLAlchemy ORM Models
+class InvoiceORM(Base):
+    """Invoice ORM model"""
+    __tablename__ = "invoices"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_number = Column(String(50), unique=True, nullable=False, index=True)
+    student_id = Column(Integer, nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    description = Column(String(500), nullable=False)
+    due_date = Column(DateTime, nullable=False)
+    status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    payments = relationship("PaymentORM", back_populates="invoice")
+    account = relationship("StudentAccountORM", back_populates="invoices")
+
+
+class PaymentORM(Base):
+    """Payment ORM model"""
+    __tablename__ = "payments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    payment_method = Column(String(100), nullable=False)
+    transaction_id = Column(String(100), nullable=True, unique=True)
+    status = Column(SQLEnum(PaymentStatus), default=PaymentStatus.PENDING)
+    payment_date = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    invoice = relationship("InvoiceORM", back_populates="payments")
+
+
+class TransactionORM(Base):
+    """Transaction ORM model"""
+    __tablename__ = "transactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, nullable=False, index=True)
+    transaction_type = Column(SQLEnum(TransactionType), nullable=False)
+    amount = Column(Float, nullable=False)
+    reference_number = Column(String(100), unique=True, nullable=False, index=True)
+    description = Column(String(500), nullable=True)
+    transaction_date = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    account = relationship("StudentAccountORM", back_populates="transactions")
+
+
+class BudgetORM(Base):
+    """Budget ORM model"""
+    __tablename__ = "budgets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(255), nullable=False, index=True)
+    allocated_amount = Column(Float, nullable=False)
+    spent_amount = Column(Float, default=0.0)
+    fiscal_year = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FinancialReportORM(Base):
+    """Financial Report ORM model"""
+    __tablename__ = "financial_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    report_type = Column(String(100), nullable=False)  # income, expense, balance_sheet
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    data = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StudentAccountORM(Base):
+    """Student Account ORM model"""
+    __tablename__ = "student_accounts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, unique=True, nullable=False, index=True)
+    balance = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    invoices = relationship("InvoiceORM", back_populates="account")
+    transactions = relationship("TransactionORM", back_populates="account")
+
+
+# Pydantic Models (for API validation)
+
 
 
 class InvoiceBase(BaseModel):

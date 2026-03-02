@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ism_postgres
+    environment:
+      POSTGRES_USER: ism_user
+      POSTGRES_PASSWORD: ism_password
+      POSTGRES_DB: ism_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ism_user -d ism_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ism_network
+
+  # Auth Service
+  auth_service:
+    build:
+      context: .
+      dockerfile: ./auth_service/Dockerfile
+    container_name: ism_auth_service
+    environment:
+      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      SERVICE_NAME: auth-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Student Service
+  student_service:
+    build:
+      context: .
+      dockerfile: ./student_service/Dockerfile
+    container_name: ism_student_service
+    environment:
+      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      SERVICE_NAME: student-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8005:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Curriculum Service
+  curriculum_service:
+    build:
+      context: .
+      dockerfile: ./curriculum_service/Dockerfile
+    container_name: ism_curriculum_service
+    environment:
+      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      SERVICE_NAME: curriculum-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8002:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Finance Service
+  finance_service:
+    build:
+      context: .
+      dockerfile: ./finance_service/Dockerfile
+    container_name: ism_finance_service
+    environment:
+      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      SERVICE_NAME: finance-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8004:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Notification Service
+  notification_service:
+    build:
+      context: .
+      dockerfile: ./notification_service/Dockerfile
+    container_name: ism_notification_service
+    environment:
+      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      SERVICE_NAME: notification-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8003:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Staff Service
+  staff_service:
+    build:
+      context: .
+      dockerfile: ./staff_service/Dockerfile
+    container_name: ism_staff_service
+    environment:
+      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      SERVICE_NAME: staff-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8006:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway
+  gateway_service:
+    build:
+      context: .
+      dockerfile: ./gateway_service/Dockerfile
+    container_name: ism_gateway
+    environment:
+      SERVICE_NAME: api-gateway
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth_service
+      - student_service
+      - curriculum_service
+      - finance_service
+      - notification_service
+      - staff_service
+    networks:
+      - ism_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  ism_network:
+    driver: bridge

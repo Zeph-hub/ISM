@@ -1,11 +1,19 @@
 """
 Staff Service Models
-Defines Pydantic models for staff management.
+Defines Pydantic and SQLAlchemy models for staff management.
 """
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLEnum, Boolean, Float, ForeignKey
+from sqlalchemy.orm import relationship
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db import Base
 
 
 class StaffRole(str, Enum):
@@ -20,7 +28,69 @@ class StaffRole(str, Enum):
     IT = "it"
 
 
-class DepartmentBase(BaseModel):
+# SQLAlchemy ORM Models
+class DepartmentORM(Base):
+    """Department ORM model"""
+    __tablename__ = "departments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, nullable=False)
+    description = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    staff_members = relationship("StaffORM", back_populates="department")
+
+
+class StaffORM(Base):
+    """Staff ORM model"""
+    __tablename__ = "staff"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    full_name = Column(String(255), nullable=False)
+    employee_id = Column(String(50), unique=True, index=True, nullable=False)
+    phone = Column(String(20), nullable=True)
+    role = Column(SQLEnum(StaffRole), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False, index=True)
+    hire_date = Column(DateTime, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    department = relationship("DepartmentORM", back_populates="staff_members")
+    salaries = relationship("SalaryORM", back_populates="staff")
+    absences = relationship("AbsenceORM", back_populates="staff")
+
+
+class SalaryORM(Base):
+    """Salary ORM model"""
+    __tablename__ = "salaries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    effective_date = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    staff = relationship("StaffORM", back_populates="salaries")
+
+
+class AbsenceORM(Base):
+    """Absence ORM model"""
+    __tablename__ = "absences"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False, index=True)
+    absence_date = Column(DateTime, nullable=False)
+    reason = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    staff = relationship("StaffORM", back_populates="absences")
+
+
+# Pydantic Models (for API validation)
+
     """Base department model"""
     name: str
     description: Optional[str] = None

@@ -1,11 +1,18 @@
 """
 Notification Service Models
-Defines Pydantic models for notification management.
+Defines Pydantic and SQLAlchemy models for notification management.
 """
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum as SQLEnum, Text, JSON
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db import Base
 
 
 class NotificationType(str, Enum):
@@ -31,6 +38,31 @@ class NotificationPriority(str, Enum):
     NORMAL = "normal"
     HIGH = "high"
     URGENT = "urgent"
+
+
+# SQLAlchemy ORM Models
+class NotificationORM(Base):
+    """Notification ORM model"""
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    recipient_id = Column(Integer, nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    notification_type = Column(SQLEnum(NotificationType), nullable=False)
+    priority = Column(SQLEnum(NotificationPriority), default=NotificationPriority.NORMAL)
+    status = Column(SQLEnum(NotificationStatus), default=NotificationStatus.PENDING)
+    read = Column(Boolean, default=False, index=True)
+    scheduled_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    read_at = Column(DateTime, nullable=True)
+    metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# Pydantic Models (for API validation)
+
 
 
 class NotificationBase(BaseModel):
