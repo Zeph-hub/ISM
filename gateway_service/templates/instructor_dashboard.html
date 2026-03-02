@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Instructor Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Instructor Dashboard</h1>
+{% if my_courses %}
+    <ul class="list-group">
+    {% for c in my_courses %}
+        <li class="list-group-item">
+            <strong>{{ c.title }}</strong> ({{ c.code }})
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>You are not assigned to any courses yet.</p>
+{% endif %}
+{% endblock %}

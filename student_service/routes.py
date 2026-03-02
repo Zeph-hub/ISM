@@ -2,9 +2,24 @@
 Student Service Routes
 Implements CRUD endpoints for student management.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer
 from typing import List
 from datetime import datetime
+import httpx
+
+# authentication helper
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "http://localhost:8001/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return resp.json()
 from .models import (
     Student, StudentCreate, StudentUpdate, Enrollment, Grade,
     EnrollmentCreate, GradeCreate, StudentWithEnrollments, StudentStatus
@@ -17,6 +32,7 @@ GRADES_DB = {}
 STUDENT_ID_COUNTER = 1
 
 router = APIRouter(prefix="/api/students", tags=["Students"])
+router.dependencies.append(Depends(get_current_user))
 
 
 @router.post("", response_model=Student, status_code=status.HTTP_201_CREATED)
@@ -51,6 +67,20 @@ async def create_student(student_data: StudentCreate) -> Student:
     }
     
     STUDENTS_DB[student_id] = new_student
+
+    # audit log
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            "http://localhost:8001/api/auth/audit-logs",
+            json={
+                "user_id": None,
+                "action": "create_student",
+                "resource": "student",
+                "status": "success",
+                "details": {"student_id": student_id}
+            }
+        )
+
     return Student(**new_student)
 
 
@@ -178,6 +208,20 @@ async def enroll_course(student_id: int, enrollment_data: EnrollmentCreate) -> E
     }
     
     ENROLLMENTS_DB[enrollment_id] = new_enrollment
+
+    # audit log
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            "http://localhost:8001/api/auth/audit-logs",
+            json={
+                "user_id": None,
+                "action": "enroll_course",
+                "resource": "enrollment",
+                "status": "success",
+                "details": {"student_id": student_id, "course_id": enrollment_data.course_id}
+            }
+        )
+
     return Enrollment(**new_enrollment)
 
 

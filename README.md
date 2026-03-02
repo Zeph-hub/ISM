@@ -6,6 +6,9 @@ A modern microservices-based school management system built with FastAPI, Postgr
 
 ISM is a comprehensive platform for managing all aspects of a school's operations:
 
+> **Update (March 2026):** role-based dashboards have been added. A unified gateway now serves HTML dashboards for administrators, instructors, students, and staff. Authentication and audit accounting are fully implemented via the Auth service.
+
+
 - **Student Management**: Enrollment, profiles, grades, and academic records
 - **Curriculum Management**: Course administration and curriculum planning
 - **Finance Management**: Billing, invoicing, payments, and financial reporting

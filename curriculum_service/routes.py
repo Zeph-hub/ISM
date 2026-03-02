@@ -1,6 +1,22 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
+from fastapi.security import OAuth2PasswordBearer
 from typing import List, Optional
 from datetime import datetime
+import httpx
+
+# Authentication dependency (calls auth service via gateway)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Verify token with auth service and return user payload."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "http://localhost:8001/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    return resp.json()
 from .models import (
     # CBC Models
     Competency, CompetencyCreate, LearningOutcome, LearningOutcomeCreate,
@@ -48,6 +64,10 @@ BRITISH_COURSE_ID_COUNTER = 1
 ASSESSMENT_ID_COUNTER = 1
 
 router = APIRouter(prefix="/api/curriculum", tags=["Curriculum"])
+
+# Example of protecting all routes with authentication by default
+# (individual endpoints can override or add role checks)
+router.dependencies.append(Depends(get_current_user))
 
 
 # ===== CBC COMPETENCIES =====

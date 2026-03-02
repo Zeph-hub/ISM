@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Staff Dashboard</h1>
+{% if finance_summary %}
+    <div class="row">
+        <div class="col-md-3"><div class="card mb-3"><div class="card-body"><h5>Total Invoiced</h5><p>{{ finance_summary.total_invoiced }}</p></div></div></div>
+        <div class="col-md-3"><div class="card mb-3"><div class="card-body"><h5>Total Paid</h5><p>{{ finance_summary.total_paid }}</p></div></div></div>
+        <div class="col-md-3"><div class="card mb-3"><div class="card-body"><h5>Outstanding</h5><p>{{ finance_summary.total_outstanding }}</p></div></div></div>
+        <div class="col-md-3"><div class="card mb-3"><div class="card-body"><h5>Accounts</h5><p>{{ finance_summary.account_count }}</p></div></div></div>
+    </div>
+{% else %}
+    <p>Unable to fetch financial summary.</p>
+{% endif %}
+{% endblock %}

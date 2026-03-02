@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Student Dashboard</h1>
+{% if profile %}
+    <p><strong>Name:</strong> {{ profile.full_name }}</p>
+    <p><strong>Email:</strong> {{ profile.email }}</p>
+    <h3>Enrolled Courses</h3>
+    <ul class="list-group">
+    {% for course in profile.enrollments %}
+        <li class="list-group-item">{{ course.title }} ({{ course.code }})</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>Unable to load your profile.</p>
+{% endif %}
+{% endblock %}

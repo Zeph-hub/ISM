@@ -2,9 +2,24 @@
 Finance Service Routes
 Implements financial management endpoints.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer
 from typing import List
 from datetime import datetime
+import httpx
+
+# authentication helper
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "http://localhost:8001/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return resp.json()
 from .models import (
     Invoice, InvoiceCreate, Payment, PaymentCreate,
     Transaction, TransactionCreate, Budget, BudgetCreate,
@@ -20,6 +35,7 @@ ACCOUNTS_DB = {}
 INVOICE_ID_COUNTER = 1000
 
 router = APIRouter(prefix="/api/finance", tags=["Finance"])
+router.dependencies.append(Depends(get_current_user))
 
 
 # ===== STUDENT ACCOUNTS =====
@@ -114,6 +130,19 @@ async def create_invoice(invoice_data: InvoiceCreate) -> Invoice:
     if account:
         account["balance"] += invoice_data.amount
         account["updated_at"] = datetime.utcnow()
+
+    # audit log entry
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            "http://localhost:8001/api/auth/audit-logs",
+            json={
+                "user_id": None,
+                "action": "create_invoice",
+                "resource": "invoice",
+                "status": "success",
+                "details": {"invoice_id": invoice_id, "student_id": invoice_data.student_id}
+            }
+        )
     
     return Invoice(**new_invoice)
 
@@ -188,6 +217,19 @@ async def record_payment(payment_data: PaymentCreate) -> Payment:
     if account:
         account["balance"] -= payment_data.amount
         account["updated_at"] = datetime.utcnow()
+
+    # audit log entry
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            "http://localhost:8001/api/auth/audit-logs",
+            json={
+                "user_id": None,
+                "action": "record_payment",
+                "resource": "payment",
+                "status": "success",
+                "details": {"payment_id": payment_id, "invoice_id": payment_data.invoice_id}
+            }
+        )
     
     return Payment(**new_payment)
 

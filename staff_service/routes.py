@@ -2,9 +2,24 @@
 Staff Service Routes
 Implements CRUD endpoints for staff management.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer
 from typing import List
 from datetime import datetime
+import httpx
+
+# authentication helper
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "http://localhost:8001/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return resp.json()
 from .models import (
     Staff, StaffCreate, StaffUpdate, StaffWithDepartment,
     Department, DepartmentBase, Salary, SalaryCreate, Absence, AbsenceCreate
@@ -18,6 +33,7 @@ ABSENCES_DB = {}
 STAFF_ID_COUNTER = 1
 
 router = APIRouter(prefix="/api/staff", tags=["Staff"])
+router.dependencies.append(Depends(get_current_user))
 
 
 # ===== DEPARTMENTS =====
@@ -32,6 +48,19 @@ async def create_department(dept_data: DepartmentBase) -> Department:
         "created_at": datetime.utcnow()
     }
     DEPARTMENTS_DB[dept_id] = new_dept
+
+    # audit log
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            "http://localhost:8001/api/auth/audit-logs",
+            json={
+                "user_id": None,
+                "action": "create_department",
+                "resource": "department",
+                "status": "success",
+                "details": {"department_id": dept_id}
+            }
+        )
     return Department(**new_dept)
 
 
@@ -94,6 +123,19 @@ async def create_staff(staff_data: StaffCreate) -> Staff:
     }
     
     STAFF_DB[staff_id] = new_staff
+
+    # audit log
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            "http://localhost:8001/api/auth/audit-logs",
+            json={
+                "user_id": None,
+                "action": "create_staff",
+                "resource": "staff",
+                "status": "success",
+                "details": {"staff_id": staff_id}
+            }
+        )
     return Staff(**new_staff)
 
 

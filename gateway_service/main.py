@@ -1,5 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordBearer
 import httpx
 import uvicorn
 
@@ -9,6 +12,11 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs"
 )
+
+# directory for dashboards and other simple HTML
+templates = Jinja2Templates(directory="/workspaces/ISM/gateway_service/templates")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # CORS middleware
 app.add_middleware(
@@ -72,6 +80,80 @@ async def register(user_data: dict):
             json=user_data
         )
         return response.json()
+
+
+# dependency used by protected endpoints to resolve current user
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Call auth service verify endpoint and return user dict."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{SERVICE_URLS['auth']}/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    return resp.json()
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, user: dict = Depends(get_current_user)):
+    """Render a role-specific dashboard page for the authenticated user."""
+    role = user.get("role")
+    context = {"request": request, "user": user}
+
+    # gather some common metrics
+    async with httpx.AsyncClient() as client:
+        # audit log for dashboard view
+        await client.post(
+            f"{SERVICE_URLS['auth']}/api/auth/audit-logs",
+            json={
+                "user_id": user.get("id"),
+                "action": "view_dashboard",
+                "resource": f"{role}_dashboard",
+                "status": "success"
+            }
+        )
+
+        # fetch user list if admin
+        if role == "admin":
+            users_resp = await client.get(f"{SERVICE_URLS['auth']}/api/auth/users")
+            context["users_count"] = len(users_resp.json()) if users_resp.status_code == 200 else 0
+            audit_resp = await client.get(f"{SERVICE_URLS['auth']}/api/auth/audit-logs")
+            context["audit_count"] = len(audit_resp.json()) if audit_resp.status_code == 200 else 0
+            # also fetch course counts
+            courses_resp = await client.get(f"{SERVICE_URLS['curriculum']}/api/curriculum/courses")
+            context["course_count"] = len(courses_resp.json()) if courses_resp.status_code == 200 else 0
+
+        elif role == "instructor":
+            # show courses taught by this instructor
+            courses_resp = await client.get(f"{SERVICE_URLS['curriculum']}/api/curriculum/courses")
+            if courses_resp.status_code == 200:
+                all_courses = courses_resp.json()
+                context["my_courses"] = [c for c in all_courses if c.get("instructor_id") == user.get("id")]
+            else:
+                context["my_courses"] = []
+
+        elif role == "student":
+            # show profile info
+            profile_resp = await client.get(f"{SERVICE_URLS['student']}/api/students/{user.get('id')}/profile")
+            context["profile"] = profile_resp.json() if profile_resp.status_code == 200 else {}
+
+        elif role == "staff":
+            # financial summary
+            fin_resp = await client.get(f"{SERVICE_URLS['finance']}/api/finance/reports/summary")
+            context["finance_summary"] = fin_resp.json() if fin_resp.status_code == 200 else {}
+
+    template_name = {
+        "admin": "admin_dashboard.html",
+        "instructor": "instructor_dashboard.html",
+        "student": "student_dashboard.html",
+        "staff": "staff_dashboard.html"
+    }.get(role, None)
+
+    if not template_name:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard unavailable for this role")
+
+    return templates.TemplateResponse(template_name, context)
 
 
 @app.post("/api/auth/login")

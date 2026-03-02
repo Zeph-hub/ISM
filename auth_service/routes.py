@@ -3,7 +3,11 @@ Auth Service Routes
 Implements Authentication, Authorization, and Accounting endpoints.
 """
 from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta
+
+# OAuth2 scheme used for token extraction in dependency functions
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 import json
 from typing import List
 from .models import (
@@ -330,6 +334,27 @@ async def log_audit(
     AUDIT_LOGS_DB.append(log_entry)
 
 
+
+@router.get("/verify", response_model=User)
+async def verify_endpoint(token: str = Depends(oauth2_scheme)) -> User:
+    """
+    Endpoint for other services to verify the access token and retrieve the user.
+
+    This allows the gateway or any internal API to confirm the identity and
+    role of the caller before serving protected resources.
+    """
+    user = await verify_token(token)
+
+    # log that a verification check occurred (accounting)
+    await log_audit(
+        user_id=user.id,
+        action="verify_token",
+        resource="auth",
+        status="success"
+    )
+    return user
+
+
 def get_permissions_for_role(role: UserRole) -> List[str]:
     """
     Get permissions assigned to a role.
@@ -368,15 +393,35 @@ def get_permissions_for_role(role: UserRole) -> List[str]:
 
 async def verify_token(token: str) -> User:
     """
-    Verify JWT token and return user.
-    
-    **Best Practice**: Implement token validation, blacklisting, and rotation
+    Verify mock token and return user object.
+
+    **Best Practice**: implement token validation, blacklisting, and rotation
+    with a proper JWT library like python-jose and check expiration.
     """
-    # In production: use python-jose to decode JWT
-    # For now, mock validation
-    if not token.startswith("access_token"):
+    # In production: use python-jose to decode a JWT and validate claims
+    if not token or not token.startswith("access_token_"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
-    return None
+
+    # our mock tokens look like "access_token_{user_id}_{timestamp}"
+    parts = token.split("_")
+    try:
+        # user id is the third element (index 2)
+        user_id = int(parts[2])
+    except (IndexError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed token"
+        )
+
+    user = USERS_DB.get(user_id)
+    if not user or not user.get("is_active"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or inactive user"
+        )
+
+    # return a pydantic User model for convenience
+    return User(**user)
