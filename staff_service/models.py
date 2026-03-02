@@ -91,6 +91,8 @@ class AbsenceORM(Base):
 
 # Pydantic Models (for API validation)
 
+
+class DepartmentBase(BaseModel):
     """Base department model"""
     name: str
     description: Optional[str] = None

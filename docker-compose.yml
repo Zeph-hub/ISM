@@ -6,15 +6,15 @@ services:
     image: postgres:15-alpine
     container_name: ism_postgres
     environment:
-      POSTGRES_USER: ism_user
-      POSTGRES_PASSWORD: ism_password
-      POSTGRES_DB: ism_db
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root1
+      POSTGRES_DB: ISM
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ism_user -d ism_db"]
+      test: ["CMD-SHELL", "pg_isready -U root -d ISM"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
       dockerfile: ./auth_service/Dockerfile
     container_name: ism_auth_service
     environment:
-      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      DATABASE_URL: postgresql://root:root1@postgres:5432/ISM
       SERVICE_NAME: auth-service
       LOG_LEVEL: INFO
     ports:
@@ -51,7 +51,7 @@ services:
       dockerfile: ./student_service/Dockerfile
     container_name: ism_student_service
     environment:
-      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      DATABASE_URL: postgresql://root:root1@postgres:5432/ISM
       SERVICE_NAME: student-service
       LOG_LEVEL: INFO
     ports:
@@ -74,7 +74,7 @@ services:
       dockerfile: ./curriculum_service/Dockerfile
     container_name: ism_curriculum_service
     environment:
-      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      DATABASE_URL: postgresql://root:root1@postgres:5432/ISM
       SERVICE_NAME: curriculum-service
       LOG_LEVEL: INFO
     ports:
@@ -97,7 +97,7 @@ services:
       dockerfile: ./finance_service/Dockerfile
     container_name: ism_finance_service
     environment:
-      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      DATABASE_URL: postgresql://root:root1@postgres:5432/ISM
       SERVICE_NAME: finance-service
       LOG_LEVEL: INFO
     ports:
@@ -120,7 +120,7 @@ services:
       dockerfile: ./notification_service/Dockerfile
     container_name: ism_notification_service
     environment:
-      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      DATABASE_URL: postgresql://root:root1@postgres:5432/ISM
       SERVICE_NAME: notification-service
       LOG_LEVEL: INFO
     ports:
@@ -143,7 +143,7 @@ services:
       dockerfile: ./staff_service/Dockerfile
     container_name: ism_staff_service
     environment:
-      DATABASE_URL: postgresql://ism_user:ism_password@postgres:5432/ism_db
+      DATABASE_URL: postgresql://root:root1@postgres:5432/ISM
       SERVICE_NAME: staff-service
       LOG_LEVEL: INFO
     ports:

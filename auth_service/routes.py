@@ -7,15 +7,21 @@ from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta
 import json
 from typing import List
+from sqlalchemy.orm import Session
+from bcrypt import checkpw, hashpw, gensalt
+
 from models import (
     UserCreate, LoginRequest, TokenResponse, User, AuditLog,
-    UserRole, UserWithPermissions, UserUpdate
+    UserRole, UserWithPermissions, UserUpdate, UserORM, AuditLogORM
 )
+
+# import database session for real persistence
+from db import SessionLocal
 
 # OAuth2 scheme used for token extraction in dependency functions
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-# Mock database - In production, use actual database
+# Mock database placeholders (legacy). We will use real database via SQLAlchemy.
 USERS_DB = {}
 AUDIT_LOGS_DB = []
 MOCK_USER_ID_COUNTER = 1
@@ -31,11 +37,10 @@ async def register(user_data: UserCreate) -> User:
     
     **Best Practice**: Always validate email uniqueness and password strength
     """
-    global MOCK_USER_ID_COUNTER
-    
-    # Check if user already exists
-    if any(u["email"] == user_data.email for u in USERS_DB.values()):
-        # Log failed registration attempt
+    # check if email already exists in database
+    db: Session = SessionLocal()
+    existing = db.query(UserORM).filter(UserORM.email == user_data.email).first()
+    if existing:
         await log_audit(
             action="register",
             resource="user",
@@ -46,32 +51,26 @@ async def register(user_data: UserCreate) -> User:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
-    # In production: hash password using bcrypt
-    user_id = MOCK_USER_ID_COUNTER
-    MOCK_USER_ID_COUNTER += 1
-    
-    new_user = {
-        "id": user_id,
-        "email": user_data.email,
-        "full_name": user_data.full_name,
-        "password": user_data.password,  # In production: use bcrypt.hashpw()
-        "role": UserRole.STUDENT,  # Default role
-        "is_active": True,
-        "created_at": datetime.utcnow()
-    }
-    
-    USERS_DB[user_id] = new_user
-    
-    # Log successful registration
+    # hash password
+    hashed = hashpw(user_data.password.encode(), gensalt()).decode()
+    user_obj = UserORM(
+        email=user_data.email,
+        full_name=user_data.full_name,
+        password_hash=hashed,
+        role=UserRole.STUDENT,
+        is_active=True,
+    )
+    db.add(user_obj)
+    db.commit()
+    db.refresh(user_obj)
+
     await log_audit(
-        user_id=user_id,
+        user_id=user_obj.id,
         action="register",
         resource="user",
         status="success"
     )
-    
-    return User(**new_user)
+    return User.from_orm(user_obj)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -81,10 +80,11 @@ async def login(credentials: LoginRequest) -> TokenResponse:
     
     **Best Practice**: Use HTTPS, rate limiting, and JWT with expiration
     """
-    # Find user by email
-    user = next((u for u in USERS_DB.values() if u["email"] == credentials.email), None)
-    
-    if not user or user["password"] != credentials.password:
+    # authenticate against actual database
+    db: Session = SessionLocal()
+    user_obj = db.query(UserORM).filter(UserORM.email == credentials.email).first()
+
+    if not user_obj or not checkpw(credentials.password.encode(), user_obj.password_hash.encode()):
         # Log failed login attempt
         await log_audit(
             action="login",
@@ -96,10 +96,10 @@ async def login(credentials: LoginRequest) -> TokenResponse:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-    
-    if not user["is_active"]:
+
+    if not user_obj.is_active:
         await log_audit(
-            user_id=user["id"],
+            user_id=user_obj.id,
             action="login",
             resource="user",
             status="failure",
@@ -109,23 +109,25 @@ async def login(credentials: LoginRequest) -> TokenResponse:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive"
         )
-    
-    # Generate tokens (mock - use python-jose in production)
-    access_token = f"access_token_{user['id']}_{datetime.utcnow().timestamp()}"
-    refresh_token = f"refresh_token_{user['id']}_{datetime.utcnow().timestamp()}"
-    
+
+    # generate tokens (mock still)
+    access_token = f"access_token_{user_obj.id}_{datetime.utcnow().timestamp()}"
+    refresh_token = f"refresh_token_{user_obj.id}_{datetime.utcnow().timestamp()}"
+
     # Log successful login
     await log_audit(
-        user_id=user["id"],
+        user_id=user_obj.id,
         action="login",
         resource="user",
         status="success"
     )
-    
+
+    # convert ORM to Pydantic
+    user_data = User.from_orm(user_obj)
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=User(**user)
+        user=user_data
     )
 
 
@@ -150,17 +152,16 @@ async def get_user(user_id: int) -> UserWithPermissions:
     
     **Best Practice**: Always verify authorization before returning sensitive data
     """
-    user = USERS_DB.get(user_id)
-    if not user:
+    db: Session = SessionLocal()
+    user_obj = db.query(UserORM).filter(UserORM.id == user_id).first()
+    if not user_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    # Mock permissions based on role
-    permissions = get_permissions_for_role(user["role"])
-    
-    return UserWithPermissions(**user, permissions=permissions)
+    permissions = get_permissions_for_role(user_obj.role)
+    user_pyd = User.from_orm(user_obj)
+    return UserWithPermissions(**user_pyd.dict(), permissions=permissions)
 
 
 @router.get("/users", response_model=List[User])
@@ -170,7 +171,9 @@ async def list_users() -> List[User]:
     
     **Best Practice**: Implement role-based access control
     """
-    return [User(**u) for u in USERS_DB.values()]
+    db: Session = SessionLocal()
+    users = db.query(UserORM).all()
+    return [User.from_orm(u) for u in users]
 
 
 @router.put("/users/{user_id}", response_model=User)
@@ -180,20 +183,18 @@ async def update_user(user_id: int, user_update: UserUpdate) -> User:
     
     **Best Practice**: Validate ownership and log all modifications
     """
-    user = USERS_DB.get(user_id)
-    if not user:
+    db: Session = SessionLocal()
+    user_obj = db.query(UserORM).filter(UserORM.id == user_id).first()
+    if not user_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    # Update fields
     if user_update.email:
-        user["email"] = user_update.email
+        user_obj.email = user_update.email
     if user_update.full_name:
-        user["full_name"] = user_update.full_name
-    
-    # Log change
+        user_obj.full_name = user_update.full_name
+    db.commit()
     await log_audit(
         user_id=user_id,
         action="user_update",
@@ -201,8 +202,7 @@ async def update_user(user_id: int, user_update: UserUpdate) -> User:
         status="success",
         details={"fields_updated": user_update.dict(exclude_unset=True)}
     )
-    
-    return User(**user)
+    return User.from_orm(user_obj)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -212,15 +212,15 @@ async def delete_user(user_id: int):
     
     **Best Practice**: Use soft delete to maintain audit trail
     """
-    user = USERS_DB.get(user_id)
-    if not user:
+    db: Session = SessionLocal()
+    user_obj = db.query(UserORM).filter(UserORM.id == user_id).first()
+    if not user_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    user["is_active"] = False
-    
+    user_obj.is_active = False
+    db.commit()
     await log_audit(
         user_id=user_id,
         action="user_deactivate",
@@ -236,17 +236,16 @@ async def assign_role(user_id: int, role: UserRole):
     
     **Best Practice**: Implement approval workflow for sensitive operations
     """
-    user = USERS_DB.get(user_id)
-    if not user:
+    db: Session = SessionLocal()
+    user_obj = db.query(UserORM).filter(UserORM.id == user_id).first()
+    if not user_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    old_role = user["role"]
-    user["role"] = role
-    
-    # Log role change
+    old_role = user_obj.role
+    user_obj.role = role
+    db.commit()
     await log_audit(
         user_id=user_id,
         action="role_change",
@@ -254,7 +253,6 @@ async def assign_role(user_id: int, role: UserRole):
         status="success",
         details={"old_role": old_role, "new_role": role}
     )
-    
     return {"message": f"User role changed from {old_role} to {role}"}
 
 
@@ -266,15 +264,14 @@ async def get_audit_logs(user_id: int = None, action: str = None) -> List[AuditL
     
     **Best Practice**: Filter logs by date range and immutable storage
     """
-    logs = AUDIT_LOGS_DB
-    
-    if user_id:
-        logs = [log for log in logs if log.get("user_id") == user_id]
-    
-    if action:
-        logs = [log for log in logs if log.get("action") == action]
-    
-    return logs
+    db: Session = SessionLocal()
+    query = db.query(AuditLogORM)
+    if user_id is not None:
+        query = query.filter(AuditLogORM.user_id == user_id)
+    if action is not None:
+        query = query.filter(AuditLogORM.action == action)
+    orm_logs = query.all()
+    return [AuditLog.from_orm(l) for l in orm_logs]
 
 
 @router.get("/audit-logs/{user_id}", response_model=List[AuditLog])
@@ -284,7 +281,9 @@ async def get_user_activity(user_id: int) -> List[AuditLog]:
     
     **Best Practice**: Help admins track suspicious activities
     """
-    return [log for log in AUDIT_LOGS_DB if log.get("user_id") == user_id]
+    db: Session = SessionLocal()
+    orm_logs = db.query(AuditLogORM).filter(AuditLogORM.user_id == user_id).all()
+    return [AuditLog.from_orm(l) for l in orm_logs]
 
 
 @router.post("/audit-logs")
@@ -320,7 +319,10 @@ async def log_audit(
     """
     Log user action for audit trail.
     This is the accounting component of AAA.
+    Persist logs to the database (and keep in-memory for backwards compatibility).
     """
+    db: Session = SessionLocal()
+    # append to legacy list
     log_entry = {
         "id": len(AUDIT_LOGS_DB) + 1,
         "user_id": user_id,
@@ -332,6 +334,19 @@ async def log_audit(
         "details": details
     }
     AUDIT_LOGS_DB.append(log_entry)
+
+    # also store in real DB
+    orm_entry = AuditLogORM(
+        user_id=user_id,
+        action=action,
+        resource=resource,
+        status=status,
+        ip_address=ip_address,
+        timestamp=datetime.utcnow(),
+        details=details
+    )
+    db.add(orm_entry)
+    db.commit()
 
 
 
@@ -416,12 +431,11 @@ async def verify_token(token: str) -> User:
             detail="Malformed token"
         )
 
-    user = USERS_DB.get(user_id)
-    if not user or not user.get("is_active"):
+    db: Session = SessionLocal()
+    user_obj = db.query(UserORM).filter(UserORM.id == user_id).first()
+    if not user_obj or not user_obj.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or inactive user"
         )
-
-    # return a pydantic User model for convenience
-    return User(**user)
+    return User.from_orm(user_obj)

@@ -14,7 +14,8 @@ app = FastAPI(
 )
 
 # directory for dashboards and other simple HTML
-templates = Jinja2Templates(directory="/workspaces/ISM/gateway_service/templates")
+# templates are copied into the container under /app/templates via Dockerfile
+templates = Jinja2Templates(directory="templates")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -29,12 +30,13 @@ app.add_middleware(
 
 # Service URLs (configure based on deployment)
 SERVICE_URLS = {
-    "auth": "http://localhost:8001",
-    "curriculum": "http://localhost:8002",
-    "notification": "http://localhost:8003",
-    "finance": "http://localhost:8004",
-    "student": "http://localhost:8005",
-    "staff": "http://localhost:8006"
+    # inside docker network use service name and internal port 8000
+    "auth": "http://auth_service:8000",
+    "curriculum": "http://curriculum_service:8000",
+    "notification": "http://notification_service:8000",
+    "finance": "http://finance_service:8000",
+    "student": "http://student_service:8000",
+    "staff": "http://staff_service:8000"
 }
 
 

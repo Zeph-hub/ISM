@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SQLEnum, Text, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SQLEnum, Text, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 import sys
 import os
@@ -46,7 +46,7 @@ class AuditLogORM(Base):
     __tablename__ = "audit_logs"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
     action = Column(String(100), nullable=False)
     resource = Column(String(100), nullable=False)
     status = Column(String(20), nullable=False)  # success or failure

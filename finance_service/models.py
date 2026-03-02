@@ -49,7 +49,7 @@ class InvoiceORM(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     invoice_number = Column(String(50), unique=True, nullable=False, index=True)
-    student_id = Column(Integer, nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey("student_accounts.student_id"), nullable=False, index=True)
     amount = Column(Float, nullable=False)
     description = Column(String(500), nullable=False)
     due_date = Column(DateTime, nullable=False)
@@ -82,7 +82,7 @@ class TransactionORM(Base):
     __tablename__ = "transactions"
     
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey("student_accounts.student_id"), nullable=False, index=True)
     transaction_type = Column(SQLEnum(TransactionType), nullable=False)
     amount = Column(Float, nullable=False)
     reference_number = Column(String(100), unique=True, nullable=False, index=True)
