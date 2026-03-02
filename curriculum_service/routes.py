@@ -3,21 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from typing import List, Optional
 from datetime import datetime
 import httpx
-
-# Authentication dependency (calls auth service via gateway)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Verify token with auth service and return user payload."""
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "http://localhost:8001/api/auth/verify",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-    if resp.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    return resp.json()
-from .models import (
+from models import (
     # CBC Models
     Competency, CompetencyCreate, LearningOutcome, LearningOutcomeCreate,
     GenericSkill, GenericSkillCreate, CBCCourse, CBCCourseCreate,
@@ -33,6 +19,20 @@ from .models import (
     Assessment, AssessmentCreate, StudentAssessment, StudentAssessmentCreate,
     LearningResource, LearningResourceCreate, CurriculumStatus
 )
+
+# Authentication dependency (calls auth service via gateway)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Verify token with auth service and return user payload."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "http://localhost:8001/api/auth/verify",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    return resp.json()
 
 # Mock databases
 COMPETENCIES_DB = {}

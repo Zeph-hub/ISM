@@ -5,15 +5,15 @@ Implements Authentication, Authorization, and Accounting endpoints.
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta
-
-# OAuth2 scheme used for token extraction in dependency functions
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 import json
 from typing import List
-from .models import (
+from models import (
     UserCreate, LoginRequest, TokenResponse, User, AuditLog,
     UserRole, UserWithPermissions, UserUpdate
 )
+
+# OAuth2 scheme used for token extraction in dependency functions
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Mock database - In production, use actual database
 USERS_DB = {}

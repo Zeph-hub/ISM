@@ -145,6 +145,8 @@ class Grade(GradeBase):
     """Grade response model"""
     id: int
     letter_grade: Optional[str]
+    
+    class Config:
         from_attributes = True
 
 

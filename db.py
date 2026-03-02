@@ -1,7 +1,3 @@
-"""
-Shared Database Configuration
-Central database setup for all microservices
-"""
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker

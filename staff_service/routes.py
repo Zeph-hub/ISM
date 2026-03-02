@@ -7,6 +7,10 @@ from fastapi.security import OAuth2PasswordBearer
 from typing import List
 from datetime import datetime
 import httpx
+from models import (
+    Staff, StaffCreate, StaffUpdate, StaffWithDepartment,
+    Department, DepartmentBase, Salary, SalaryCreate, Absence, AbsenceCreate
+)
 
 # authentication helper
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -20,10 +24,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if resp.status_code != 200:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     return resp.json()
-from .models import (
-    Staff, StaffCreate, StaffUpdate, StaffWithDepartment,
-    Department, DepartmentBase, Salary, SalaryCreate, Absence, AbsenceCreate
-)
 
 # Mock database
 STAFF_DB = {}

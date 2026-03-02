@@ -5,7 +5,7 @@ Implements notification management endpoints.
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 from datetime import datetime
-from .models import (
+from models import (
     Notification, NotificationCreate, NotificationTemplate, NotificationTemplateCreate,
     BulkNotification, BulkNotificationCreate, NotificationPreference,
     NotificationPreferenceUpdate, NotificationChannel, NotificationStatus
